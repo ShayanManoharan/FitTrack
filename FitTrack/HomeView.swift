@@ -18,5 +18,11 @@ struct HomeView: View {
         }
         .padding()
         .navigationTitle("Home")
+        .onAppear {
+            print("[Lifecycle] HomeView appeared")
+        }
+        .onDisappear {
+            print("[Lifecycle] HomeView disappeared")
+        }
     }
 }

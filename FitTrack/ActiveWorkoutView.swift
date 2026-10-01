@@ -19,6 +19,12 @@ struct ActiveWorkoutView: View {
         }
         .navigationTitle("Active Workout")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            print("[Lifecycle] ActiveWorkoutView appeared")
+        }
+        .onDisappear {
+            print("[Lifecycle] ActiveWorkoutView disappeared")
+        }
     }
 
     private func exerciseRow(_ name: String, details: String) -> some View {

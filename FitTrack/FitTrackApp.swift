@@ -9,9 +9,23 @@ import SwiftUI
 
 @main
 struct FitTrackApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+        }
+        .onChange(of: scenePhase) { phase in
+            switch phase {
+            case .active:
+                print("[Lifecycle] App active")
+            case .inactive:
+                print("[Lifecycle] App inactive")
+            case .background:
+                print("[Lifecycle] App background")
+            @unknown default:
+                break
+            }
         }
     }
 }
