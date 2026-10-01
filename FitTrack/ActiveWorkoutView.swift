@@ -2,13 +2,31 @@ import SwiftUI
 
 struct ActiveWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var isBenchPressRerouted = false
 
     var body: some View {
         List {
             Section(header: Text("Upper Body Strength")) {
-                exerciseRow("Barbell Bench Press", details: "3 sets × 8 reps · 95 lb")
+                exerciseRow(
+                    isBenchPressRerouted ? "Dumbbell Floor Press" : "Barbell Bench Press",
+                    details: isBenchPressRerouted
+                        ? "3 sets × 8 reps · 30 lb per dumbbell"
+                        : "3 sets × 8 reps · 95 lb"
+                )
                 exerciseRow("Seated Cable Row", details: "3 sets × 10 reps · 70 lb")
                 exerciseRow("Dumbbell Shoulder Press", details: "3 sets × 10 reps · 20 lb per dumbbell")
+            }
+
+            Section(header: Text("Equipment unavailable?")) {
+                Text(isBenchPressRerouted
+                     ? "Bench press replaced with a dumbbell floor press. Sample weights are suggestions; adjust to your ability."
+                     : "If the bench is busy, try a dumbbell floor press instead.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                Button(isBenchPressRerouted ? "Restore Original Exercise" : "Reroute Exercise") {
+                    isBenchPressRerouted.toggle()
+                }
             }
 
             Section {
