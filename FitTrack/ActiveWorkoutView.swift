@@ -3,6 +3,11 @@ import SwiftUI
 struct ActiveWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isBenchPressRerouted = false
+    @State private var isSaving = false
+    @State private var saveMessage: String?
+
+    private let firestoreService = FirestoreService()
+    @State private var workoutStartedAt = Date()
 
     var body: some View {
         List {
@@ -30,6 +35,25 @@ struct ActiveWorkoutView: View {
             }
 
             Section {
+                Button {
+                    saveWorkout()
+                } label: {
+                    if isSaving {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Save Workout")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .disabled(isSaving)
+
+                if let saveMessage {
+                    Text(saveMessage)
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+
                 Button("Back to Home") {
                     dismiss()
                 }
@@ -42,6 +66,57 @@ struct ActiveWorkoutView: View {
         }
         .onDisappear {
             print("[Lifecycle] ActiveWorkoutView disappeared")
+        }
+    }
+
+    private func saveWorkout() {
+        isSaving = true
+        saveMessage = nil
+
+        let workoutID = UUID().uuidString
+        let workout = Workout(
+            workoutID: workoutID,
+            userID: "demo-user",
+            gymID: nil,
+            date: Date(),
+            duration: max(0, Int(Date().timeIntervalSince(workoutStartedAt))),
+            workoutType: "Upper Body Strength",
+            exercises: [
+                WorkoutExercise(
+                    workoutID: workoutID,
+                    exerciseID: isBenchPressRerouted ? "dumbbell-floor-press" : "barbell-bench-press",
+                    weight: isBenchPressRerouted ? 30 : 95,
+                    reps: 8,
+                    sets: 3
+                ),
+                WorkoutExercise(
+                    workoutID: workoutID,
+                    exerciseID: "seated-cable-row",
+                    weight: 70,
+                    reps: 10,
+                    sets: 3
+                ),
+                WorkoutExercise(
+                    workoutID: workoutID,
+                    exerciseID: "dumbbell-shoulder-press",
+                    weight: 20,
+                    reps: 10,
+                    sets: 3
+                )
+            ]
+        )
+
+        firestoreService.saveWorkout(workout) { result in
+            DispatchQueue.main.async {
+                isSaving = false
+
+                switch result {
+                case .success:
+                    saveMessage = "Workout saved."
+                case .failure(let error):
+                    saveMessage = "Could not save workout: \(error.localizedDescription)"
+                }
+            }
         }
     }
 

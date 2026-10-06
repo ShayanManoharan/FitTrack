@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyC_HN2GlcLtR8_ZCTXjyO0spWSaRz7SjoE</string>
+	<key>GCM_SENDER_ID</key>
+	<string>131611333634</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.shayanmanoharan.FitTrack</string>
+	<key>PROJECT_ID</key>
+	<string>fittrack-db0fb</string>
+	<key>STORAGE_BUCKET</key>
+	<string>fittrack-db0fb.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:131611333634:ios:2fe7ffa7713b847edf431b</string>
+</dict>
+</plist>
