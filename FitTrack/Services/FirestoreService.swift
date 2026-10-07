@@ -20,7 +20,12 @@ class FirestoreService {
                     "exerciseID": exercise.exerciseID,
                     "weight": exercise.weight,
                     "reps": exercise.reps,
-                    "sets": exercise.sets
+                    "sets": exercise.sets,
+                    "isSkipped": exercise.isSkipped ?? false,
+                    "setResults": (exercise.setResults ?? []).map { set in
+                        ["weight": set.weight, "reps": set.reps, "rest": set.rest,
+                         "isComplete": set.isComplete] as [String: Any]
+                    }
                 ]
             }
         ]

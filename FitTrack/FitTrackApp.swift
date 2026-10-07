@@ -13,14 +13,14 @@ struct FitTrackApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-            FirebaseApp.configure()
-        }
+        FirebaseApp.configure()
+    }
     
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
                 print("[Lifecycle] App active")

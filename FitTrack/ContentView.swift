@@ -1,23 +1,13 @@
-//
-//  ContentView.swift
-//  FitTrack
-//
-//  Created by Shayan Manoharan on 10/1/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var store = WorkoutStore()
     var body: some View {
-        NavigationView {
-            HomeView()
-        }
-        .navigationViewStyle(.stack)
-    }
-}
-
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
+        MainControllerView(store: store)
+            .ignoresSafeArea(.container, edges: .bottom)
+            .preferredColorScheme(.light)
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                store.persist()
+            }
     }
 }

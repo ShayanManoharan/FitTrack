@@ -8,4 +8,6 @@ struct WorkoutExercise: Identifiable, Codable {
     var weight: Double
     var reps: Int
     var sets: Int
+    var setResults: [PlannedSet]? = nil
+    var isSkipped: Bool? = nil
 }
