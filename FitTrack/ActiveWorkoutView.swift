@@ -37,6 +37,12 @@ struct ActiveWorkoutView: View {
                 }
             }.fitTrackScreen()
         }
+        .onAppear {
+            print("[Lifecycle] ActiveWorkoutView appeared")
+        }
+        .onDisappear {
+            print("[Lifecycle] ActiveWorkoutView disappeared")
+        }
         .sheet(isPresented: $showAlternatives) {
             NavigationStack {
                 ScrollView {

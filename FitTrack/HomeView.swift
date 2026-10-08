@@ -29,6 +29,12 @@ struct HomeView: View {
                     .frame(maxWidth: 1100).frame(maxWidth: .infinity)
             }.fitTrackScreen()
         }
+        .onAppear {
+            print("[Lifecycle] HomeView appeared")
+        }
+        .onDisappear {
+            print("[Lifecycle] HomeView disappeared")
+        }
         .sheet(item: $sheet) { route in
             NavigationStack {
                 Group {
