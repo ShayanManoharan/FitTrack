@@ -11,14 +11,17 @@ import FirebaseCore
 @main
 struct FitTrackApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var authViewModel: AuthViewModel
 
     init() {
         FirebaseApp.configure()
+        _authViewModel = StateObject(wrappedValue: AuthViewModel())
     }
     
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(authViewModel)
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
