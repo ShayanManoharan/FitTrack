@@ -6,6 +6,7 @@ struct Workout: Identifiable, Codable {
     let workoutID: String
     let userID: String
     let gymID: String?
+    var gymName: String?
     var date: Date
     var duration: Int
     var workoutType: String

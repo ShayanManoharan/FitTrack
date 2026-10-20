@@ -53,6 +53,10 @@ final class AuthViewModel: ObservableObject {
         }
     }
 
+    func clearError() {
+        errorMessage = nil
+    }
+
     deinit {
         repository.removeAuthStateObserver()
     }

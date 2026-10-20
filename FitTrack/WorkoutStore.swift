@@ -12,6 +12,8 @@ final class WorkoutStore: ObservableObject {
     @Published private(set) var isSaved = false
     @Published private(set) var storageMessage: String?
     private let defaults: UserDefaults
+    private let authRepository: AuthRepository
+    private let requiresAuthentication: Bool
     private let saveRemote: @MainActor (Workout, @escaping (Result<Void, Error>) -> Void) -> Void
 
     static let gyms = [(id: "rpac", name: "RPAC"),
@@ -36,11 +38,14 @@ final class WorkoutStore: ObservableObject {
     }
 
     init(defaults: UserDefaults = .standard,
-         saveRemote: @escaping @MainActor (Workout, @escaping (Result<Void, Error>) -> Void) -> Void = { workout, completion in
-             FirestoreService().saveWorkout(workout, completion: completion)
-         }) {
+         authRepository: AuthRepository = AuthRepository(),
+         saveRemote: (@MainActor (Workout, @escaping (Result<Void, Error>) -> Void) -> Void)? = nil) {
         self.defaults = defaults
-        self.saveRemote = saveRemote
+        self.authRepository = authRepository
+        self.requiresAuthentication = saveRemote == nil
+        self.saveRemote = saveRemote ?? { workout, completion in
+            WorkoutRepository(authRepository: authRepository).createWorkout(workout, completion: completion)
+        }
         if let data = defaults.data(forKey: "fittrack.native.state") {
             do {
                 let state = try JSONDecoder().decode(Cache.self, from: data)
@@ -98,14 +103,21 @@ final class WorkoutStore: ObservableObject {
         isSaving = true
         saveMessage = nil
         let id = session.id.uuidString
-        let workout = Workout(workoutID: id, userID: "demo-user", gymID: session.gymID,
+        guard let userID = authRepository.currentUser?.id ?? (requiresAuthentication ? nil : "demo-user") else {
+            isSaving = false
+            saveMessage = "Sign in before saving a workout."
+            return
+        }
+        let workout = Workout(workoutID: id, userID: userID, gymID: session.gymID, gymName: gymName,
                               date: end, duration: max(0, Int(end.timeIntervalSince(session.startedAt))),
                               workoutType: session.name, exercises: session.exercises.map { exercise in
             WorkoutExercise(workoutID: id, exerciseID: exercise.exerciseID,
                             weight: exercise.sets.first?.weight ?? 0,
                             reps: exercise.sets.first?.reps ?? 0,
                             sets: exercise.sets.filter(\.isComplete).count,
-                            setResults: exercise.sets, isSkipped: exercise.isSkipped)
+                            name: exercise.name, muscleGroup: exercise.muscleGroup,
+                            equipment: exercise.equipment, setResults: exercise.sets,
+                            isSkipped: exercise.isSkipped)
         })
         saveRemote(workout) { [weak self] result in
             Task { @MainActor in
