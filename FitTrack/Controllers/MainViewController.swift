@@ -37,14 +37,28 @@ final class ActiveWorkoutViewController: LifecycleHostingController<ActiveWorkou
     @MainActor required dynamic init?(coder aDecoder: NSCoder) { fatalError("Use init(store:onHome:)") }
 }
 
+final class ProfileViewController: LifecycleHostingController<ProfileView> {
+    init(profile: ProfileStore, auth: AuthViewModel) {
+        super.init(name: "ProfileViewController", rootView: ProfileView(profile: profile, auth: auth))
+    }
+    @MainActor required dynamic init?(coder aDecoder: NSCoder) { fatalError("Use init(profile:auth:)") }
+}
+
 final class MainViewController: UIViewController {
     private let store: WorkoutStore
+    private let profile: ProfileStore
+    private let auth: AuthViewModel
     private let content = UIView()
     private var screen: UIViewController?
     private var footer: UIHostingController<WorkoutTabBar>?
     private var selectedTab = 0
 
-    init(store: WorkoutStore) { self.store = store; super.init(nibName: nil, bundle: nil) }
+    init(store: WorkoutStore, profile: ProfileStore, auth: AuthViewModel) {
+        self.store = store
+        self.profile = profile
+        self.auth = auth
+        super.init(nibName: nil, bundle: nil)
+    }
     required init?(coder: NSCoder) { fatalError("Use init(store:)") }
 
     override func loadView() { super.loadView(); log("loadView") }
@@ -78,7 +92,7 @@ final class MainViewController: UIViewController {
         WorkoutTabBar(selected: selectedTab) { [weak self] tab in self?.selectTab(tab) }
     }
     private func selectTab(_ tab: Int) {
-        guard tab != selectedTab else { return }
+        guard [0, 1, 3].contains(tab), tab != selectedTab else { return }
         if tab == 1 && store.session == nil { store.startWorkout() }
         if presentedViewController != nil {
             dismiss(animated: true) { [weak self] in self?.showScreen(tab) }
@@ -89,8 +103,10 @@ final class MainViewController: UIViewController {
         let next: UIViewController
         if tab == 0 {
             next = HomeViewController(store: store) { [weak self] in self?.selectTab(1) }
-        } else {
+        } else if tab == 1 {
             next = ActiveWorkoutViewController(store: store) { [weak self] in self?.selectTab(0) }
+        } else {
+            next = ProfileViewController(profile: profile, auth: auth)
         }
         let previous = screen
         // On visible tab changes, forward appearance transitions through UIKit.
@@ -132,13 +148,13 @@ private struct WorkoutTabBar: View {
     var body: some View {
         HStack(spacing: 0) {
             ForEach(0..<tabs.count, id: \.self) { index in
-                Button { if index < 2 { onSelect(index) } } label: {
+                Button { if index != 2 { onSelect(index) } } label: {
                     VStack(spacing: 4) {
                         Text(tabs[index].1).font(.system(size: 22)).frame(height: 25)
                         Text(tabs[index].0).font(.system(size: 11, weight: index == selected ? .bold : .regular))
                     }.frame(maxWidth: .infinity, minHeight: 56)
                 }.foregroundStyle(index == selected ? FitTrackStyle.accent : FitTrackStyle.tabMuted)
-                    .accessibilityHint(index > 1 ? "Available in a future checkpoint" : "Open \(tabs[index].0)")
+                    .accessibilityHint(index == 2 ? "Available in a future checkpoint" : "Open \(tabs[index].0)")
                     .accessibilityAddTraits(index == selected ? .isSelected : [])
             }
         }.background(.white).overlay(alignment: .top) { Rectangle().fill(FitTrackStyle.line).frame(height: 1) }
@@ -148,6 +164,14 @@ private struct WorkoutTabBar: View {
 
 struct MainControllerView: UIViewControllerRepresentable {
     let store: WorkoutStore
-    func makeUIViewController(context: Context) -> MainViewController { MainViewController(store: store) }
+    let profile: ProfileStore
+    let auth: AuthViewModel
+    func makeUIViewController(context: Context) -> MainViewController {
+        MainViewController(store: store, profile: profile, auth: auth)
+    }
     func updateUIViewController(_ uiViewController: MainViewController, context: Context) { }
+    static func dismantleUIViewController(_ uiViewController: MainViewController, coordinator: ()) {
+        // A sign-out can remove this container while Profile's sheet is open.
+        uiViewController.dismiss(animated: false)
+    }
 }
