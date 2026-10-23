@@ -7,7 +7,7 @@ struct HomeView: View {
     @AppStorage("fittrack.native.displayName") private var displayName = "Kevin"
 
     private enum HomeSheet: String, Identifiable {
-        case gyms, plans, create
+        case gyms, plans, create, savedWorkouts
         var id: String { rawValue }
     }
 
@@ -22,6 +22,8 @@ struct HomeView: View {
                             todayWorkout.frame(maxWidth: .infinity)
                         }
                     } else { gym; todayWorkout; planActions }
+                    Button("Saved workouts") { sheet = .savedWorkouts }
+                        .buttonStyle(FitTrackOutline())
                     if let message = store.storageMessage {
                         Text(message).font(.footnote).foregroundStyle(.red)
                     }
@@ -42,6 +44,7 @@ struct HomeView: View {
                     case .gyms: gymChoices
                     case .plans: SavedPlansView(store: store, onStart: onStartWorkout)
                     case .create: PlanEditorView(store: store, plan: nil)
+                    case .savedWorkouts: SavedWorkoutsView()
                     }
                 }
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { sheet = nil } } }

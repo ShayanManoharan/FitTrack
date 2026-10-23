@@ -15,7 +15,13 @@ enum WorkoutRepositoryError: LocalizedError {
     }
 }
 
-final class WorkoutRepository {
+protocol SavedWorkoutRepository {
+    func fetchWorkouts(completion: @escaping (Result<[Workout], Error>) -> Void)
+    func updateWorkout(_ workout: Workout, completion: @escaping (Result<Void, Error>) -> Void)
+    func deleteWorkout(id: String, completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+final class WorkoutRepository: SavedWorkoutRepository {
     private let db: Firestore
     private let authRepository: AuthRepository
 

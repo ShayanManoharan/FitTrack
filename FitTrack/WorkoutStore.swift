@@ -108,7 +108,8 @@ final class WorkoutStore: ObservableObject {
             saveMessage = "Sign in before saving a workout."
             return
         }
-        let workout = Workout(workoutID: id, userID: userID, gymID: session.gymID, gymName: gymName,
+        let sessionGymName = Self.gyms.first { $0.id == session.gymID }?.name
+        let workout = Workout(workoutID: id, userID: userID, gymID: session.gymID, gymName: sessionGymName,
                               date: end, duration: max(0, Int(end.timeIntervalSince(session.startedAt))),
                               workoutType: session.name, exercises: session.exercises.map { exercise in
             WorkoutExercise(workoutID: id, exerciseID: exercise.exerciseID,
