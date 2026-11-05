@@ -48,7 +48,7 @@ struct HomeView: View {
                     }
                 }
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { sheet = nil } } }
-            }.tint(FitTrackStyle.accent).preferredColorScheme(.light)
+            }.tint(FitTrackStyle.accent)
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
         }
     }
@@ -89,6 +89,7 @@ struct HomeView: View {
 
     private var todayWorkout: some View {
         let session = store.session
+        let isRestDay = !store.hasPendingSession && store.scheduledWorkout(on: Date())?.isRestDay == true
         let title = store.hasPendingSession ? session?.name ?? store.todayPlan.name : store.todayPlan.name
         let total = store.hasPendingSession ? session?.exercises.count ?? 0 : store.todayPlan.exercises.count
         let done = store.hasPendingSession ? session?.completedCount ?? 0 : 0
@@ -101,16 +102,16 @@ struct HomeView: View {
             }
             VStack(spacing: 12) {
                 HStack(alignment: .top) {
-                    Text(title).font(.system(size: 19, weight: .bold))
+                    Text(isRestDay ? "Rest Day" : title).font(.system(size: 19, weight: .bold))
                     Spacer()
-                    StatusPill(text: store.hasActiveSession ? "In progress" : store.hasPendingSession ? "Ready to save" : "Scheduled")
+                    StatusPill(text: isRestDay ? "Rest day" : store.hasActiveSession ? "In progress" : store.hasPendingSession ? "Ready to save" : "Scheduled")
                 }
                 HStack(spacing: 8) {
                     detail("Time", value: "—")
-                    detail("Location", value: store.gymName)
+                    detail("Location", value: isRestDay ? "—" : store.gymName)
                 }
-                detail("Exercises", value: "\(done) of \(total) completed · \(total) planned")
-                Button(store.hasActiveSession ? "RESUME WORKOUT →" : store.hasPendingSession ? "SAVE FINISHED WORKOUT →" : "START WORKOUT →") {
+                detail("Exercises", value: isRestDay ? "Rest and recover today" : "\(done) of \(total) completed · \(total) planned")
+                Button(isRestDay ? "START A WORKOUT ANYWAY →" : store.hasActiveSession ? "RESUME WORKOUT →" : store.hasPendingSession ? "SAVE FINISHED WORKOUT →" : "START WORKOUT →") {
                     store.startWorkout()
                     onStartWorkout()
                 }.buttonStyle(FitTrackPrimary()).disabled(store.isSaving)

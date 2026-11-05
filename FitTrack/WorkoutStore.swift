@@ -5,6 +5,7 @@ import Combine
 final class WorkoutStore: ObservableObject {
     @Published private(set) var session: WorkoutSession?
     @Published private(set) var plans: [WorkoutPlan] = []
+    @Published private(set) var scheduledWorkouts: [ScheduledWorkout] = []
     @Published private(set) var gymID = "rpac"
     @Published private(set) var history: [WorkoutSession] = []
     @Published private(set) var isSaving = false
@@ -20,7 +21,7 @@ final class WorkoutStore: ObservableObject {
                        (id: "north-recreation", name: "North Recreation Center"),
                        (id: "adventure-recreation", name: "Adventure Recreation Center")]
     var gymName: String { Self.gyms.first { $0.id == gymID }?.name ?? "RPAC" }
-    var todayPlan: WorkoutPlan { plans.first ?? WorkoutCatalog.defaultPlan }
+    var todayPlan: WorkoutPlan { scheduledWorkout(on: Date())?.plan ?? plans.first ?? WorkoutCatalog.defaultPlan }
     var hasActiveSession: Bool { session != nil && session?.finishedAt == nil }
     var hasPendingSession: Bool { session != nil && !isSaved }
     var streak: Int {
@@ -54,15 +55,18 @@ final class WorkoutStore: ObservableObject {
                 history = state.history
                 gymID = state.gymID
                 isSaved = state.isSaved
+                scheduledWorkouts = state.scheduledWorkouts ?? []
             } catch { storageMessage = "Saved local data could not be read. \(error.localizedDescription)" }
         }
     }
 
     func startWorkout(plan: WorkoutPlan? = nil) {
         guard !hasPendingSession, !isSaving else { return }
+        let appointment = scheduledWorkout(on: Date())
+        let matching = appointment?.isRestDay == false && (plan == nil || plan?.id == appointment?.plan?.id) ? appointment : nil
         let plan = plan ?? todayPlan
         guard !plan.exercises.isEmpty else { return }
-        session = WorkoutSession(name: plan.name, gymID: gymID, exercises: plan.exercises.map { exercise in
+        session = WorkoutSession(name: plan.name, gymID: matching?.gymID ?? gymID, exercises: plan.exercises.map { exercise in
             var copy = exercise
             copy.id = UUID()
             copy.isSkipped = false
@@ -74,6 +78,7 @@ final class WorkoutStore: ObservableObject {
             }
             return copy
         })
+        session?.scheduledWorkoutID = matching?.id
         isSaved = false
         saveMessage = nil
         persist()
@@ -97,6 +102,43 @@ final class WorkoutStore: ObservableObject {
         persist()
     }
     func deletePlan(_ id: UUID) { plans.removeAll { $0.id == id }; persist() }
+
+    func scheduledWorkout(on date: Date, calendar: Calendar = Calendar(identifier: .gregorian)) -> ScheduledWorkout? {
+        scheduledWorkouts.first { $0.isOn(date, calendar: calendar) }
+    }
+
+    @discardableResult
+    func scheduleWorkout(planID: UUID, on date: Date, calendar: Calendar = Calendar(identifier: .gregorian), now: Date = Date()) -> Bool {
+        guard calendar.startOfDay(for: date) >= calendar.startOfDay(for: now),
+              let plan = plans.first(where: { $0.id == planID }), !plan.exercises.isEmpty else { return false }
+        let day = calendar.dateComponents([.year, .month, .day], from: date)
+        if let index = scheduledWorkouts.firstIndex(where: { $0.isOn(date, calendar: calendar) }) {
+            scheduledWorkouts[index].plan = plan
+            scheduledWorkouts[index].gymID = gymID
+        } else {
+            scheduledWorkouts.append(ScheduledWorkout(day: day, plan: plan, gymID: gymID))
+        }
+        persist()
+        return true
+    }
+
+    @discardableResult
+    func scheduleRestDay(on date: Date, calendar: Calendar = Calendar(identifier: .gregorian), now: Date = Date()) -> Bool {
+        guard calendar.startOfDay(for: date) >= calendar.startOfDay(for: now) else { return false }
+        let day = calendar.dateComponents([.year, .month, .day], from: date)
+        // Use a new assignment ID so finishing an already-active workout cannot remove the rest day.
+        let rest = ScheduledWorkout(day: day, plan: nil, gymID: gymID)
+        if let index = scheduledWorkouts.firstIndex(where: { $0.isOn(date, calendar: calendar) }) {
+            scheduledWorkouts[index] = rest
+        } else { scheduledWorkouts.append(rest) }
+        persist()
+        return true
+    }
+
+    func removeScheduledWorkout(_ id: UUID) {
+        scheduledWorkouts.removeAll { $0.id == id }
+        persist()
+    }
 
     func saveWorkout() {
         guard let session, let end = session.finishedAt, !isSaving, !isSaved else { return }
@@ -129,6 +171,9 @@ final class WorkoutStore: ObservableObject {
                     self.isSaved = true
                     self.saveMessage = "Workout saved."
                     if !self.history.contains(where: { $0.id == session.id }) { self.history.append(session) }
+                    if let scheduleID = session.scheduledWorkoutID {
+                        self.scheduledWorkouts.removeAll { $0.id == scheduleID }
+                    }
                     self.persist()
                 case .failure(let error):
                     self.saveMessage = "Could not save workout: \(error.localizedDescription). Your workout remains on this device; try again."
@@ -143,11 +188,12 @@ final class WorkoutStore: ObservableObject {
         var history: [WorkoutSession]
         var gymID: String
         var isSaved: Bool
+        var scheduledWorkouts: [ScheduledWorkout]? = nil
     }
     func persist() {
         do {
             let data = try JSONEncoder().encode(Cache(session: session, plans: plans, history: history,
-                                                     gymID: gymID, isSaved: isSaved))
+                                                     gymID: gymID, isSaved: isSaved, scheduledWorkouts: scheduledWorkouts))
             defaults.set(data, forKey: "fittrack.native.state")
             storageMessage = nil
         } catch { storageMessage = "Could not save local progress: \(error.localizedDescription)" }

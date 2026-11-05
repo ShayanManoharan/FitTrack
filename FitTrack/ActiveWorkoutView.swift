@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ActiveWorkoutView: View {
     @ObservedObject var store: WorkoutStore
+    @ObservedObject var profile: ProfileStore
+    private var weightUnit: WeightUnit { WeightUnit(preference: profile.settings.units) }
     let onHome: () -> Void
     @State private var showAlternatives = false
     @State private var showEditor = false
@@ -75,7 +77,7 @@ struct ActiveWorkoutView: View {
         }
         .sheet(isPresented: $showEditor) {
             if let exercise = store.session?.currentExercise {
-                SetEditorView(sets: exercise.sets) { store.editSets($0) }
+                SetEditorView(sets: exercise.sets, unit: weightUnit) { store.editSets($0) }
             }
         }
         .alert("Skip \(store.session?.currentExercise?.name ?? "exercise")?", isPresented: $confirmSkip) {
@@ -132,20 +134,20 @@ struct ActiveWorkoutView: View {
                     HStack {
                         Button { store.completeSet(set.id) } label: {
                             RoundedRectangle(cornerRadius: 7)
-                                .fill(set.isComplete ? FitTrackStyle.accent : .white)
+                                .fill(set.isComplete ? FitTrackStyle.accent : FitTrackStyle.surface)
                                 .overlay(RoundedRectangle(cornerRadius: 7).stroke(set.isComplete ? FitTrackStyle.accent : FitTrackStyle.line, lineWidth: 2))
                                 .overlay { if set.isComplete { Image(systemName: "checkmark").font(.system(size: 13, weight: .heavy)).foregroundStyle(.white) } }
                                 .frame(width: 22, height: 22).frame(width: 40, height: 54, alignment: .leading)
                         }.accessibilityLabel("Set \(index + 1)")
                             .accessibilityValue(set.isComplete ? "Complete" : "Incomplete")
                             .accessibilityHint("Toggle set completion")
-                        Text("\(set.weight.formatted()) lb").frame(maxWidth: .infinity, alignment: .leading)
+                        Text(weightUnit.label(pounds: set.weight)).frame(maxWidth: .infinity, alignment: .leading)
                         Text("\(set.reps)").frame(maxWidth: .infinity, alignment: .leading)
                         Text("\(set.rest) sec").frame(maxWidth: .infinity, alignment: .leading)
                     }.font(.system(size: 14)).padding(.horizontal, 16)
                         .foregroundStyle(set.isComplete ? FitTrackStyle.muted : FitTrackStyle.ink)
                 }
-            }.background(.white).clipShape(RoundedRectangle(cornerRadius: 18))
+            }.background(FitTrackStyle.surface).clipShape(RoundedRectangle(cornerRadius: 18))
                 .shadow(color: FitTrackStyle.ink.opacity(0.04), radius: 7, y: 3)
             Text("Check each set when you finish it. Your plan sets the targets based on your goals.")
                 .font(.system(size: 12)).foregroundStyle(FitTrackStyle.muted)
@@ -181,6 +183,7 @@ struct ActiveWorkoutView: View {
 
 private struct SetEditorView: View {
     @State var sets: [PlannedSet]
+    let unit: WeightUnit
     let onSave: ([PlannedSet]) -> Void
     @Environment(\.dismiss) private var dismiss
     private var valid: Bool {
@@ -196,7 +199,17 @@ private struct SetEditorView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Set \((sets.firstIndex(where: { $0.id == set.id }) ?? 0) + 1)").font(.headline)
                             HStack {
-                                VStack { Text("Weight (lb)"); TextField("Weight", value: $set.weight, format: .number).keyboardType(.decimalPad) }
+                                VStack {
+                                    Text("Weight (\(unit.symbol))")
+                                    TextField("Weight", value: Binding(get: {
+                                        unit.editingValue(fromPounds: set.weight)
+                                    }, set: { value in
+                                        // Do not change canonical pounds when an unchanged rounded field is committed.
+                                        if value != unit.editingValue(fromPounds: set.weight) { set.weight = unit.toPounds(value) }
+                                    }), format: .number.precision(.fractionLength(0...2)))
+                                        .keyboardType(.decimalPad)
+                                        .accessibilityLabel("Weight in \(unit.rawValue.lowercased())")
+                                }
                                 VStack { Text("Reps"); TextField("Reps", value: $set.reps, format: .number).keyboardType(.numberPad) }
                                 VStack { Text("Rest (sec)"); TextField("Rest", value: $set.rest, format: .number).keyboardType(.numberPad) }
                             }.font(.caption).textFieldStyle(.roundedBorder)

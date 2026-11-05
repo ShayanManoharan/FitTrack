@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ProfileView: View {
     @ObservedObject var profile: ProfileStore
@@ -29,7 +30,7 @@ struct ProfileView: View {
         .overlay(alignment: .bottom) {
             if savedNotice {
                 Text("Changes saved").font(.system(size: 13)).foregroundStyle(.white)
-                    .padding(12).frame(maxWidth: .infinity).background(FitTrackStyle.ink)
+                    .padding(12).frame(maxWidth: .infinity).background(FitTrackStyle.accent)
                     .clipShape(RoundedRectangle(cornerRadius: 11)).padding(22)
                     .accessibilityIdentifier("profileSavedNotice")
             }
@@ -43,9 +44,11 @@ struct ProfileView: View {
         .sheet(item: $panel) { selected in
             if selected == .signout {
                 signOutPanel
+            } else if selected == .account {
+                AccountSettingsView(profile: profile, auth: auth)
             } else {
-                ProfileEditorView(panel: selected, initial: profile.settings, signInEmail: auth.currentUser?.email ?? "", errorMessage: profile.errorMessage) { updated in
-                    if profile.save(updated) {
+                ProfileEditorView(panel: selected, initial: profile.settings, errorMessage: profile.errorMessage) { updated in
+                    if profile.save(updated, requestReminderPermission: selected == .units || selected == .general) {
                         panel = nil
                         savedNotice = true
                     }
@@ -159,15 +162,13 @@ private enum ProfilePanel: String, Identifiable {
 
 private struct ProfileEditorView: View {
     let panel: ProfilePanel
-    let signInEmail: String
     let errorMessage: String?
     let onSave: (ProfileSettings) -> Void
     @State private var draft: ProfileSettings
     @Environment(\.dismiss) private var dismiss
 
-    init(panel: ProfilePanel, initial: ProfileSettings, signInEmail: String, errorMessage: String?, onSave: @escaping (ProfileSettings) -> Void) {
+    init(panel: ProfilePanel, initial: ProfileSettings, errorMessage: String?, onSave: @escaping (ProfileSettings) -> Void) {
         self.panel = panel
-        self.signInEmail = signInEmail
         self.errorMessage = errorMessage
         self.onSave = onSave
         _draft = State(initialValue: initial)
@@ -186,22 +187,19 @@ private struct ProfileEditorView: View {
                 case .units:
                     choice("Weight units", selection: $draft.units, options: ["Pounds", "Kilograms"])
                     choice("Workout reminders", selection: $draft.reminders, options: ["On", "Off"])
-                    note("These preferences are saved locally. Workout weight conversion and scheduled reminders are not connected yet.")
+                    if draft.reminders == "On" {
+                        DatePicker("Reminder time", selection: reminderTime, displayedComponents: .hourAndMinute)
+                            .datePickerStyle(.compact).font(.subheadline)
+                        note("Receive a reminder at this time on scheduled workout days. Rest days are skipped.")
+                    }
+                    note("Weight units apply to workout displays and editing. Your saved weights are preserved when switching units.")
+                    ReminderPermissionView()
                 case .general:
                     choice("Appearance", selection: $draft.appearance, options: ["System", "Light", "Dark"])
                     choice("Notifications", selection: $draft.notifications, options: ["On", "Off"])
-                    note("These choices are saved on this device. Appearance and notifications need app integration to take effect.")
-                case .account:
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Name").font(.system(size: 12, weight: .semibold))
-                        TextField("Name", text: $draft.name).textContentType(.name).textFieldStyle(.roundedBorder)
-                    }
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Profile email").font(.system(size: 12, weight: .semibold))
-                        TextField("Email", text: $draft.email).keyboardType(.emailAddress).textContentType(.emailAddress)
-                            .textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder)
-                    }
-                    note("Name and profile email are saved on this device. Your Firebase sign-in email remains \(signInEmail).")
+                    note("Appearance applies throughout the app after saving. Notifications controls workout reminders together with the Reminders setting.")
+                    ReminderPermissionView()
+                case .account: EmptyView()
                 case .signout: EmptyView()
                 }
                 if let errorMessage { Text(errorMessage).font(.footnote).foregroundStyle(.red) }
@@ -210,6 +208,16 @@ private struct ProfileEditorView: View {
                 Button("Cancel") { dismiss() }.buttonStyle(FitTrackOutline())
             }.padding(22)
         }.fitTrackScreen().presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
+    }
+
+    private var reminderTime: Binding<Date> {
+        Binding(get: {
+            Calendar.current.date(bySettingHour: draft.reminderHour ?? 9, minute: draft.reminderMinute ?? 0,
+                                  second: 0, of: Date()) ?? Date()
+        }, set: { date in
+            draft.reminderHour = Calendar.current.component(.hour, from: date)
+            draft.reminderMinute = Calendar.current.component(.minute, from: date)
+        })
     }
 
     private var validAccount: Bool {
@@ -225,7 +233,7 @@ private struct ProfileEditorView: View {
             Picker(title, selection: selection) {
                 ForEach(options, id: \.self) { Text($0).tag($0) }
             }.pickerStyle(.menu).frame(maxWidth: .infinity, alignment: .leading)
-                .padding(5).background(.white)
+                .padding(5).background(FitTrackStyle.surface)
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(FitTrackStyle.line))
         }
     }
@@ -233,7 +241,89 @@ private struct ProfileEditorView: View {
 
 private extension View {
     func profileGroup() -> some View {
-        background(.white).clipShape(RoundedRectangle(cornerRadius: 16))
+        background(FitTrackStyle.surface).clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(color: FitTrackStyle.ink.opacity(0.04), radius: 7, y: 3)
+    }
+}
+
+private struct ReminderPermissionView: View {
+    @ObservedObject private var service = WorkoutReminderService.shared
+    @Environment(\.openURL) private var openURL
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(service.message).font(.footnote).foregroundStyle(FitTrackStyle.muted)
+            if service.permissionDenied {
+                Button("Open notification settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                }.font(.subheadline.bold())
+            }
+        }
+    }
+}
+
+private struct AccountSettingsView: View {
+    @ObservedObject var profile: ProfileStore
+    @ObservedObject var auth: AuthViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var email = ""
+    @State private var password = ""
+    @State private var busy = false
+    @State private var message: String?
+    @State private var failure: String?
+
+    private var emailChanged: Bool {
+        email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != (auth.currentUser?.email ?? "").lowercased()
+    }
+    private var valid: Bool {
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !clean.isEmpty && clean.count <= 60 && address.contains("@")
+            && !address.contains(where: \.isWhitespace) && (!emailChanged || !password.isEmpty)
+    }
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Account settings").font(.title2.bold())
+                Text("Name").font(.subheadline.bold())
+                TextField("Name", text: $name).textContentType(.name).textFieldStyle(.roundedBorder)
+                Text("Sign-in email").font(.subheadline.bold())
+                TextField("Email", text: $email).keyboardType(.emailAddress).textContentType(.emailAddress)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder)
+                if emailChanged {
+                    SecureField("Current password", text: $password).textContentType(.password).textFieldStyle(.roundedBorder)
+                    Text("Confirm your password to request an email change. Open the verification link sent to the new address to finish. Your current email remains active until verified.")
+                        .font(.footnote).foregroundStyle(FitTrackStyle.muted)
+                }
+                if let message { Text(message).font(.footnote).accessibilityIdentifier("accountSaveResult") }
+                if let failure { Text(failure).font(.footnote).foregroundStyle(.red) }
+                Button(busy ? "Saving…" : "Save changes") { Task { await save() } }
+                    .buttonStyle(FitTrackPrimary()).disabled(busy || !valid)
+                Button("Done") { dismiss() }.buttonStyle(FitTrackOutline()).disabled(busy)
+            }.padding(22).disabled(busy)
+        }.fitTrackScreen().presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
+            .interactiveDismissDisabled(busy)
+            .task {
+                await auth.refreshAccount()
+                if let user = auth.currentUser { profile.synchronizeAccount(user) }
+                name = profile.settings.name
+                email = auth.currentUser?.email ?? profile.settings.email
+            }
+    }
+    @MainActor private func save() async {
+        busy = true; failure = nil; message = nil
+        defer { busy = false; password = "" }
+        do {
+            try await auth.updateAccountName(name.trimmingCharacters(in: .whitespacesAndNewlines))
+            if let user = auth.currentUser { profile.synchronizeAccount(user) }
+            if emailChanged {
+                message = "Name saved. Email has not changed yet."
+                let address = email.trimmingCharacters(in: .whitespacesAndNewlines)
+                try await auth.requestEmailChange(to: address, password: password)
+                message = "Name saved. Verification sent to \(address). Verify the link, then return to the app to refresh your sign-in email."
+            } else { message = "Account changes saved." }
+        } catch {
+            failure = error.localizedDescription
+        }
     }
 }

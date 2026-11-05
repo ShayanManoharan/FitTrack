@@ -10,6 +10,9 @@ struct ProfileSettings: Codable, Equatable {
     var reminders = "On"
     var appearance = "System"
     var notifications = "On"
+    // Optional fields keep profiles saved by earlier app versions decodable.
+    var reminderHour: Int? = 9
+    var reminderMinute: Int? = 0
 
     static let goals = ["Build strength", "Build muscle", "Improve endurance", "Stay active"]
     static let places = ["Gym", "Home", "Outdoors"]

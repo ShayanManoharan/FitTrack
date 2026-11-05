@@ -67,6 +67,24 @@ final class AuthViewModel: ObservableObject {
         }
     }
 
+    func updateAccountName(_ name: String) async throws {
+        let id = currentUser?.id
+        let user = try await repository.updateName(name)
+        if currentUser?.id == id { state = .signedIn(user) }
+    }
+
+    func requestEmailChange(to email: String, password: String) async throws {
+        try await repository.requestEmailChange(to: email, password: password)
+    }
+
+    func refreshAccount() async {
+        let id = currentUser?.id
+        do {
+            let user = try await repository.reloadUser()
+            if currentUser?.id == id { state = user.map(State.signedIn) ?? .signedOut }
+        } catch { /* Keep the cached session when offline. */ }
+    }
+
     func clearError() {
         errorMessage = nil
     }

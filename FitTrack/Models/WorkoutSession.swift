@@ -32,6 +32,7 @@ struct WorkoutSession: Codable, Equatable {
     var finishedAt: Date?
     var gymID: String
     var exercises: [SessionExercise]
+    var scheduledWorkoutID: UUID? = nil
     var currentIndex = 0
     var completedCount: Int { exercises.filter(\.isComplete).count }
     var currentExercise: SessionExercise? {

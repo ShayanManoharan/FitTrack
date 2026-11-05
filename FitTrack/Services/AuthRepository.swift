@@ -51,6 +51,29 @@ final class AuthRepository {
         }
     }
 
+    func updateName(_ name: String) async throws -> AuthenticatedUser {
+        guard let user = auth.currentUser else { throw AuthRepositoryError.missingAuthenticatedUser }
+        let change = user.createProfileChangeRequest()
+        change.displayName = name
+        try await change.commitChanges()
+        return Self.makeUser(user)
+    }
+
+    func requestEmailChange(to email: String, password: String) async throws {
+        guard let user = auth.currentUser, let currentEmail = user.email else {
+            throw AuthRepositoryError.missingAuthenticatedUser
+        }
+        let credential = EmailAuthProvider.credential(withEmail: currentEmail, password: password)
+        try await user.reauthenticate(with: credential)
+        try await user.sendEmailVerification(beforeUpdatingEmail: email)
+    }
+
+    func reloadUser() async throws -> AuthenticatedUser? {
+        guard let user = auth.currentUser else { return nil }
+        try await user.reload()
+        return auth.currentUser.map(Self.makeUser)
+    }
+
     func signOut() throws {
         try auth.signOut()
     }

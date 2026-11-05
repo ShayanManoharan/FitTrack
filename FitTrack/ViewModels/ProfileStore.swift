@@ -5,6 +5,7 @@ import Foundation
 final class ProfileStore: ObservableObject {
     @Published private(set) var settings: ProfileSettings
     @Published private(set) var errorMessage: String?
+    @Published private(set) var reminderPermissionRequest = 0
     private let defaults: UserDefaults
     private let key: String
 
@@ -22,7 +23,7 @@ final class ProfileStore: ObservableObject {
     }
 
     @discardableResult
-    func save(_ updated: ProfileSettings) -> Bool {
+    func save(_ updated: ProfileSettings, requestReminderPermission: Bool = false) -> Bool {
         var updated = updated
         updated.name = updated.name.trimmingCharacters(in: .whitespacesAndNewlines)
         updated.email = updated.email.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -37,11 +38,21 @@ final class ProfileStore: ObservableObject {
             settings = updated
             errorMessage = nil
             updateGreeting()
+            if requestReminderPermission && updated.reminders == "On" && updated.notifications == "On" {
+                reminderPermissionRequest += 1
+            }
             return true
         } catch {
             errorMessage = "Could not save preferences: \(error.localizedDescription)"
             return false
         }
+    }
+
+    func synchronizeAccount(_ user: AuthenticatedUser) {
+        var updated = settings
+        if let name = user.displayName, !name.isEmpty { updated.name = name }
+        if let email = user.email { updated.email = email }
+        if updated != settings { save(updated) }
     }
 
     func reload() {

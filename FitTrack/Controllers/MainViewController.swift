@@ -31,10 +31,17 @@ final class HomeViewController: LifecycleHostingController<HomeView> {
 }
 
 final class ActiveWorkoutViewController: LifecycleHostingController<ActiveWorkoutView> {
-    init(store: WorkoutStore, onHome: @escaping () -> Void) {
-        super.init(name: "ActiveWorkoutViewController", rootView: ActiveWorkoutView(store: store, onHome: onHome))
+    init(store: WorkoutStore, profile: ProfileStore, onHome: @escaping () -> Void) {
+        super.init(name: "ActiveWorkoutViewController", rootView: ActiveWorkoutView(store: store, profile: profile, onHome: onHome))
     }
     @MainActor required dynamic init?(coder aDecoder: NSCoder) { fatalError("Use init(store:onHome:)") }
+}
+
+final class CalendarViewController: LifecycleHostingController<WorkoutCalendarView> {
+    init(store: WorkoutStore) {
+        super.init(name: "CalendarViewController", rootView: WorkoutCalendarView(store: store))
+    }
+    @MainActor required dynamic init?(coder aDecoder: NSCoder) { fatalError("Use init(store:)") }
 }
 
 final class ProfileViewController: LifecycleHostingController<ProfileView> {
@@ -72,7 +79,7 @@ final class MainViewController: UIViewController {
         self.footer = footer
         addChild(footer)
         footer.view.translatesAutoresizingMaskIntoConstraints = false
-        footer.view.backgroundColor = .white
+        footer.view.backgroundColor = UIColor(FitTrackStyle.surface)
         view.addSubview(footer.view)
         NSLayoutConstraint.activate([
             content.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -92,7 +99,7 @@ final class MainViewController: UIViewController {
         WorkoutTabBar(selected: selectedTab) { [weak self] tab in self?.selectTab(tab) }
     }
     private func selectTab(_ tab: Int) {
-        guard [0, 1, 3].contains(tab), tab != selectedTab else { return }
+        guard (0..<4).contains(tab), tab != selectedTab else { return }
         if tab == 1 && store.session == nil { store.startWorkout() }
         if presentedViewController != nil {
             dismiss(animated: true) { [weak self] in self?.showScreen(tab) }
@@ -104,7 +111,9 @@ final class MainViewController: UIViewController {
         if tab == 0 {
             next = HomeViewController(store: store) { [weak self] in self?.selectTab(1) }
         } else if tab == 1 {
-            next = ActiveWorkoutViewController(store: store) { [weak self] in self?.selectTab(0) }
+            next = ActiveWorkoutViewController(store: store, profile: profile) { [weak self] in self?.selectTab(0) }
+        } else if tab == 2 {
+            next = CalendarViewController(store: store)
         } else {
             next = ProfileViewController(profile: profile, auth: auth)
         }
@@ -148,17 +157,17 @@ private struct WorkoutTabBar: View {
     var body: some View {
         HStack(spacing: 0) {
             ForEach(0..<tabs.count, id: \.self) { index in
-                Button { if index != 2 { onSelect(index) } } label: {
+                Button { onSelect(index) } label: {
                     VStack(spacing: 4) {
                         Text(tabs[index].1).font(.system(size: 22)).frame(height: 25)
                         Text(tabs[index].0).font(.system(size: 11, weight: index == selected ? .bold : .regular))
                     }.frame(maxWidth: .infinity, minHeight: 56)
                 }.foregroundStyle(index == selected ? FitTrackStyle.accent : FitTrackStyle.tabMuted)
-                    .accessibilityHint(index == 2 ? "Available in a future checkpoint" : "Open \(tabs[index].0)")
+                    .accessibilityHint("Open \(tabs[index].0)")
                     .accessibilityAddTraits(index == selected ? .isSelected : [])
             }
-        }.background(.white).overlay(alignment: .top) { Rectangle().fill(FitTrackStyle.line).frame(height: 1) }
-            .preferredColorScheme(.light)
+        }.background(FitTrackStyle.surface).overlay(alignment: .top) { Rectangle().fill(FitTrackStyle.line).frame(height: 1) }
+
     }
 }
 
@@ -169,7 +178,10 @@ struct MainControllerView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> MainViewController {
         MainViewController(store: store, profile: profile, auth: auth)
     }
-    func updateUIViewController(_ uiViewController: MainViewController, context: Context) { }
+    func updateUIViewController(_ uiViewController: MainViewController, context: Context) {
+        uiViewController.overrideUserInterfaceStyle = profile.settings.appearance == "Dark" ? .dark
+            : profile.settings.appearance == "Light" ? .light : .unspecified
+    }
     static func dismantleUIViewController(_ uiViewController: MainViewController, coordinator: ()) {
         // A sign-out can remove this container while Profile's sheet is open.
         uiViewController.dismiss(animated: false)
