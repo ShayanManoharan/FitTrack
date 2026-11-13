@@ -5,6 +5,26 @@ import Testing
 
 @MainActor
 struct GymDiscoveryTests {
+    @Test func selectedGymUsesTheExistingAccountSpecificCache() throws {
+        let firstSuite = "GymTests.first.\(UUID())"
+        let secondSuite = "GymTests.second.\(UUID())"
+        let first = try #require(UserDefaults(suiteName: firstSuite))
+        let second = try #require(UserDefaults(suiteName: secondSuite))
+        defer {
+            first.removePersistentDomain(forName: firstSuite)
+            second.removePersistentDomain(forName: secondSuite)
+        }
+        let store = WorkoutStore(defaults: first, saveRemote: { _, _ in })
+        store.selectGym("north-recreation")
+        store.selectGym("invalid-gym")
+        let restored = WorkoutStore(defaults: first, saveRemote: { _, _ in })
+        let otherAccount = WorkoutStore(defaults: second, saveRemote: { _, _ in })
+        #expect(restored.gymID == "north-recreation")
+        #expect(otherAccount.gymID == "rpac")
+        restored.startWorkout()
+        #expect(restored.session?.gymID == "north-recreation")
+    }
+
     @Test func manualSelectionKeepsEveryExistingGymAndHasNoInventedDistances() {
         let results = GymDiscovery.ranked(GymCatalog.gyms, from: nil)
         #expect(results.map(\.id) == ["rpac", "north-recreation", "adventure-recreation"])

@@ -4,6 +4,8 @@ struct GymSelectionView: View {
     @ObservedObject var store: WorkoutStore
     @StateObject private var location = LocationService()
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     private var gyms: [NearbyGym] { GymDiscovery.ranked(WorkoutStore.gyms, from: location.location) }
 
@@ -40,16 +42,27 @@ struct GymSelectionView: View {
         .navigationTitle("Find gyms")
         .navigationBarTitleDisplayMode(.inline)
         .fitTrackScreen()
+        .onAppear { location.refreshAuthorization() }
+        .onDisappear { location.cancel() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { location.refreshAuthorization() }
+            else if phase == .background { location.cancel() }
+        }
     }
 
     @ViewBuilder private var locationControls: some View {
         if location.isLoading {
             ProgressView("Getting your location…")
+            Button("Continue without location", action: location.cancel)
+                .font(.subheadline)
         } else {
             switch location.status {
             case .denied:
-                Text("Location access is off. You can still choose a gym manually.")
+                Text("Location access is off. Allow FitTrack location access in Settings and ensure Location Services is on, or choose a gym manually.")
                     .font(.subheadline).foregroundStyle(FitTrackStyle.muted)
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                }.buttonStyle(FitTrackOutline())
             case .restricted:
                 Text("Location access is restricted on this device. Choose a gym manually.")
                     .font(.subheadline).foregroundStyle(FitTrackStyle.muted)
