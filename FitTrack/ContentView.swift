@@ -23,6 +23,7 @@ private struct SignedInContentView: View {
     private let userID: String
     @ObservedObject var auth: AuthViewModel
     @StateObject private var store: WorkoutStore
+    @StateObject private var savedWorkouts: SavedWorkoutsStore
     @StateObject private var profile: ProfileStore
 
     init(user: AuthenticatedUser, auth: AuthViewModel) {
@@ -40,12 +41,16 @@ private struct SignedInContentView: View {
                 defaults.set(data, forKey: "fittrack.native.state")
             }
         }
-        _store = StateObject(wrappedValue: WorkoutStore(defaults: defaults))
+        let savedWorkouts = SavedWorkoutsStore()
+        _savedWorkouts = StateObject(wrappedValue: savedWorkouts)
+        _store = StateObject(wrappedValue: WorkoutStore(defaults: defaults, onWorkoutSaved: {
+            savedWorkouts.refresh()
+        }))
         _profile = StateObject(wrappedValue: ProfileStore(user: user))
     }
 
     var body: some View {
-        MainControllerView(store: store, profile: profile, auth: auth)
+        MainControllerView(store: store, savedWorkouts: savedWorkouts, profile: profile, auth: auth)
             .ignoresSafeArea(.container, edges: .bottom)
             .preferredColorScheme(FitTrackStyle.colorScheme(profile.settings.appearance))
 

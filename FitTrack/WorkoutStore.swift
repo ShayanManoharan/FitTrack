@@ -16,6 +16,7 @@ final class WorkoutStore: ObservableObject {
     private let authRepository: AuthRepository
     private let requiresAuthentication: Bool
     private let saveRemote: @MainActor (Workout, @escaping (Result<Void, Error>) -> Void) -> Void
+    private let onWorkoutSaved: (() -> Void)?
 
     static let gyms = [(id: "rpac", name: "RPAC"),
                        (id: "north-recreation", name: "North Recreation Center"),
@@ -40,10 +41,12 @@ final class WorkoutStore: ObservableObject {
 
     init(defaults: UserDefaults = .standard,
          authRepository: AuthRepository = AuthRepository(),
-         saveRemote: (@MainActor (Workout, @escaping (Result<Void, Error>) -> Void) -> Void)? = nil) {
+         saveRemote: (@MainActor (Workout, @escaping (Result<Void, Error>) -> Void) -> Void)? = nil,
+         onWorkoutSaved: (() -> Void)? = nil) {
         self.defaults = defaults
         self.authRepository = authRepository
         self.requiresAuthentication = saveRemote == nil
+        self.onWorkoutSaved = onWorkoutSaved
         self.saveRemote = saveRemote ?? { workout, completion in
             WorkoutRepository(authRepository: authRepository).createWorkout(workout, completion: completion)
         }
@@ -175,6 +178,7 @@ final class WorkoutStore: ObservableObject {
                         self.scheduledWorkouts.removeAll { $0.id == scheduleID }
                     }
                     self.persist()
+                    self.onWorkoutSaved?()
                 case .failure(let error):
                     self.saveMessage = "Could not save workout: \(error.localizedDescription). Your workout remains on this device; try again."
                 }

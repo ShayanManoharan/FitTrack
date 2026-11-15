@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WorkoutCalendarView: View {
     @ObservedObject var store: WorkoutStore
+    @ObservedObject var savedWorkouts: SavedWorkoutsStore
     @Environment(\.scenePhase) private var scenePhase
     @State private var state = WorkoutCalendarState()
     @State private var showScheduler = false
@@ -11,7 +12,8 @@ struct WorkoutCalendarView: View {
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
 
     private var snapshot: WorkoutCalendarSnapshot {
-        var records = WorkoutCalendarRecords.saved(history: store.history, pending: store.hasPendingSession ? store.session : nil,
+        var records = WorkoutCalendarRecords.saved(workouts: savedWorkouts.workouts,
+                history: store.history, pending: store.hasPendingSession ? store.session : nil,
                 gymNames: Dictionary(uniqueKeysWithValues: WorkoutStore.gyms.map { ($0.id, $0.name) }),
                 calendar: state.calendar)
         let linked = Set((store.history + (store.session.map { [$0] } ?? [])).compactMap(\.scheduledWorkoutID))
@@ -65,8 +67,17 @@ struct WorkoutCalendarView: View {
             Button("Make rest day") { store.scheduleRestDay(on: state.selected, calendar: state.calendar) }
             Button("Cancel", role: .cancel) { }
         } message: { Text("This replaces the workout assigned to this date. Your saved plan and completed history will stay unchanged.") }
-        .onChange(of: scenePhase) { _, phase in if phase == .active { state.refreshToday(Date()) } }
-        .onAppear { state.refreshToday(Date()); print("[Lifecycle] CalendarView appeared") }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                state.refreshToday(Date())
+                savedWorkouts.refresh()
+            }
+        }
+        .onAppear {
+            state.refreshToday(Date())
+            savedWorkouts.load()
+            print("[Lifecycle] CalendarView appeared")
+        }
         .onDisappear { print("[Lifecycle] CalendarView disappeared") }
     }
 

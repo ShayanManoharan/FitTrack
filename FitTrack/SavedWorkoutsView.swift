@@ -1,9 +1,13 @@
 import SwiftUI
 
 struct SavedWorkoutsView: View {
-    @StateObject private var store = SavedWorkoutsStore()
+    @ObservedObject var store: SavedWorkoutsStore
     @State private var editing: Workout?
     @State private var deleting: Workout?
+
+    init(store: SavedWorkoutsStore) {
+        self.store = store
+    }
 
     var body: some View {
         List {
@@ -37,7 +41,7 @@ struct SavedWorkoutsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("Refresh", action: store.load).disabled(store.isBusy)
+                Button("Refresh", action: { store.refresh() }).disabled(store.isBusy)
             }
         }
         .onAppear { store.load() }

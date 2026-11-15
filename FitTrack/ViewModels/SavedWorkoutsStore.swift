@@ -29,6 +29,10 @@ final class SavedWorkoutsStore: ObservableObject {
         }
     }
 
+    func refresh() {
+        load()
+    }
+
     func rename(_ workout: Workout, to name: String, onSuccess: @escaping () -> Void) {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !isBusy else { return }

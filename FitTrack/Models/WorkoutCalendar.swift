@@ -160,4 +160,36 @@ enum WorkoutCalendarRecords {
                 completed: session.finishedAt == nil ? nil : completed, total: session.exercises.count)
         }
     }
+
+    static func saved(workouts: [Workout], history: [WorkoutSession], pending: WorkoutSession?,
+                      gymNames: [String: String], calendar: Calendar) -> [CalendarWorkoutRecord] {
+        let remoteIDs = Set(workouts.map(\.workoutID))
+        let localHistory = history.filter { !remoteIDs.contains($0.id.uuidString) }
+        let localPending = pending.flatMap { remoteIDs.contains($0.id.uuidString) ? nil : $0 }
+        return saved(workouts: workouts, calendar: calendar)
+            + saved(history: localHistory, pending: localPending, gymNames: gymNames, calendar: calendar)
+    }
+
+    static func saved(workouts: [Workout], calendar: Calendar) -> [CalendarWorkoutRecord] {
+        workouts.map { workout in
+            let completed = workout.exercises.filter { exercise in
+                !(exercise.isSkipped ?? false) && exercise.sets > 0
+            }.count
+            let skipped = workout.exercises.allSatisfy { $0.isSkipped ?? false }
+            let hasCompletedSets = workout.exercises.contains { $0.sets > 0 }
+            let status: WorkoutDayStatus = workout.exercises.isEmpty || skipped && !hasCompletedSets ? .skipped
+                : completed == workout.exercises.count ? .complete
+                : hasCompletedSets ? .partial : .skipped
+            return CalendarWorkoutRecord(
+                id: workout.workoutID,
+                date: workout.date,
+                status: status,
+                title: workout.workoutType,
+                minutes: workout.duration > 0 ? workout.duration / 60 : nil,
+                location: workout.gymName ?? workout.gymID,
+                completed: completed,
+                total: workout.exercises.count
+            )
+        }
+    }
 }

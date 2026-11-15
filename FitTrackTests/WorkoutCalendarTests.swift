@@ -87,4 +87,23 @@ struct WorkoutCalendarTests {
         #expect(records[0].completed == 0)
         #expect(records[0].total == 1)
     }
+
+    @Test func savedWorkoutsShowRemoteResultsAndDoNotDuplicateLocalHistory() {
+        let id = UUID()
+        var exercise = WorkoutCatalog.exercises[0]
+        exercise.sets[0].isComplete = true
+        let start = date(2026, 11, 2)
+        var local = WorkoutSession(name: "Local copy", startedAt: start, finishedAt: start.addingTimeInterval(1800),
+            gymID: "rpac", exercises: [exercise])
+        local.id = id
+        let remote = Workout(workoutID: id.uuidString, userID: "account-one", gymID: "rpac", gymName: "RPAC",
+            date: start.addingTimeInterval(1800), duration: 1800, workoutType: "Remote copy",
+            exercises: [WorkoutExercise(workoutID: id.uuidString, exerciseID: "bench", weight: 95,
+                reps: 10, sets: 1, name: "Bench Press", setResults: exercise.sets)])
+        let records = WorkoutCalendarRecords.saved(workouts: [remote], history: [local],
+            pending: nil, gymNames: ["rpac": "RPAC"], calendar: calendar)
+        #expect(records.count == 1)
+        #expect(records[0].id == remote.workoutID)
+        #expect(records[0].title == "Remote copy")
+    }
 }

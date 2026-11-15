@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @ObservedObject var store: WorkoutStore
+    @ObservedObject var savedWorkouts: SavedWorkoutsStore
     let onStartWorkout: () -> Void
     @State private var sheet: HomeSheet?
     @AppStorage("fittrack.native.displayName") private var displayName = "Kevin"
@@ -44,7 +45,7 @@ struct HomeView: View {
                     case .gyms: gymChoices
                     case .plans: SavedPlansView(store: store, onStart: onStartWorkout)
                     case .create: PlanEditorView(store: store, plan: nil)
-                    case .savedWorkouts: SavedWorkoutsView()
+                    case .savedWorkouts: SavedWorkoutsView(store: savedWorkouts)
                     }
                 }
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { sheet = nil } } }

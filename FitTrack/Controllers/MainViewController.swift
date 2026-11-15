@@ -24,8 +24,8 @@ class LifecycleHostingController<Content: View>: UIHostingController<Content> {
 }
 
 final class HomeViewController: LifecycleHostingController<HomeView> {
-    init(store: WorkoutStore, onStart: @escaping () -> Void) {
-        super.init(name: "HomeViewController", rootView: HomeView(store: store, onStartWorkout: onStart))
+    init(store: WorkoutStore, savedWorkouts: SavedWorkoutsStore, onStart: @escaping () -> Void) {
+        super.init(name: "HomeViewController", rootView: HomeView(store: store, savedWorkouts: savedWorkouts, onStartWorkout: onStart))
     }
     @MainActor required dynamic init?(coder aDecoder: NSCoder) { fatalError("Use init(store:onStart:)") }
 }
@@ -38,8 +38,8 @@ final class ActiveWorkoutViewController: LifecycleHostingController<ActiveWorkou
 }
 
 final class CalendarViewController: LifecycleHostingController<WorkoutCalendarView> {
-    init(store: WorkoutStore) {
-        super.init(name: "CalendarViewController", rootView: WorkoutCalendarView(store: store))
+    init(store: WorkoutStore, savedWorkouts: SavedWorkoutsStore) {
+        super.init(name: "CalendarViewController", rootView: WorkoutCalendarView(store: store, savedWorkouts: savedWorkouts))
     }
     @MainActor required dynamic init?(coder aDecoder: NSCoder) { fatalError("Use init(store:)") }
 }
@@ -55,15 +55,17 @@ final class MainViewController: UIViewController {
     private let store: WorkoutStore
     private let profile: ProfileStore
     private let auth: AuthViewModel
+    private let savedWorkouts: SavedWorkoutsStore
     private let content = UIView()
     private var screen: UIViewController?
     private var footer: UIHostingController<WorkoutTabBar>?
     private var selectedTab = 0
 
-    init(store: WorkoutStore, profile: ProfileStore, auth: AuthViewModel) {
+    init(store: WorkoutStore, profile: ProfileStore, auth: AuthViewModel, savedWorkouts: SavedWorkoutsStore) {
         self.store = store
         self.profile = profile
         self.auth = auth
+        self.savedWorkouts = savedWorkouts
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError("Use init(store:)") }
@@ -109,11 +111,11 @@ final class MainViewController: UIViewController {
     private func showScreen(_ tab: Int) {
         let next: UIViewController
         if tab == 0 {
-            next = HomeViewController(store: store) { [weak self] in self?.selectTab(1) }
+            next = HomeViewController(store: store, savedWorkouts: savedWorkouts) { [weak self] in self?.selectTab(1) }
         } else if tab == 1 {
             next = ActiveWorkoutViewController(store: store, profile: profile) { [weak self] in self?.selectTab(0) }
         } else if tab == 2 {
-            next = CalendarViewController(store: store)
+            next = CalendarViewController(store: store, savedWorkouts: savedWorkouts)
         } else {
             next = ProfileViewController(profile: profile, auth: auth)
         }
@@ -173,10 +175,11 @@ private struct WorkoutTabBar: View {
 
 struct MainControllerView: UIViewControllerRepresentable {
     let store: WorkoutStore
+    let savedWorkouts: SavedWorkoutsStore
     let profile: ProfileStore
     let auth: AuthViewModel
     func makeUIViewController(context: Context) -> MainViewController {
-        MainViewController(store: store, profile: profile, auth: auth)
+        MainViewController(store: store, profile: profile, auth: auth, savedWorkouts: savedWorkouts)
     }
     func updateUIViewController(_ uiViewController: MainViewController, context: Context) {
         uiViewController.overrideUserInterfaceStyle = profile.settings.appearance == "Dark" ? .dark
