@@ -105,6 +105,7 @@ struct ActiveWorkoutView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Eyebrow(text: "Exercise \(session.currentIndex + 1) of \(session.exercises.count)")
                     Text(exercise.name).font(.system(size: 24, weight: .bold)).tracking(-0.5)
+                        .accessibilityIdentifier("currentExercise")
                     Text("\(exercise.muscleGroup) · \(exercise.equipment)").font(.system(size: 12))
                         .foregroundStyle(FitTrackStyle.muted)
                 }
@@ -120,6 +121,7 @@ struct ActiveWorkoutView: View {
                 Text("Planned sets").font(.system(size: 16, weight: .bold))
                 Spacer()
                 Button("Edit details") { showEditor = true }.font(.system(size: 13, weight: .bold)).frame(minHeight: 44)
+                    .accessibilityIdentifier("editSetTargets")
             }
             VStack(spacing: 0) {
                 HStack {
@@ -139,6 +141,7 @@ struct ActiveWorkoutView: View {
                                 .overlay { if set.isComplete { Image(systemName: "checkmark").font(.system(size: 13, weight: .heavy)).foregroundStyle(.white) } }
                                 .frame(width: 22, height: 22).frame(width: 40, height: 54, alignment: .leading)
                         }.accessibilityLabel("Set \(index + 1)")
+                            .accessibilityIdentifier("set-\(index)")
                             .accessibilityValue(set.isComplete ? "Complete" : "Incomplete")
                             .accessibilityHint("Toggle set completion")
                         Text(weightUnit.label(pounds: set.weight)).frame(maxWidth: .infinity, alignment: .leading)
@@ -153,12 +156,15 @@ struct ActiveWorkoutView: View {
                 .font(.system(size: 12)).foregroundStyle(FitTrackStyle.muted)
             HStack(spacing: 12) {
                 Button("↔ Find alternative") { showAlternatives = true }.buttonStyle(FitTrackOutline(height: 49))
+                    .accessibilityIdentifier("rerouteExercise")
                 Button("Skip exercise →") { confirmSkip = true }
+                    .accessibilityIdentifier("skipExercise")
                     .buttonStyle(FitTrackOutline(height: 49, color: FitTrackStyle.muted))
             }.padding(.top, 13)
             Button(session.currentIndex == session.exercises.count - 1 ? "FINISH WORKOUT" : "COMPLETE EXERCISE →") {
                 store.advanceExercise()
             }.buttonStyle(FitTrackPrimary(height: 54, radius: 14)).disabled(!session.canAdvance).padding(.top, 14)
+                .accessibilityIdentifier("completeExercise")
             Text(session.canAdvance ? "All sets complete · ready to continue" : "Complete every set to continue")
                 .font(.system(size: 12)).foregroundStyle(FitTrackStyle.muted).frame(maxWidth: .infinity)
         }
@@ -175,8 +181,10 @@ struct ActiveWorkoutView: View {
                 if store.isSaving { ProgressView().tint(.white) }
                 else { Text(store.isSaved ? "WORKOUT SAVED" : "SAVE WORKOUT") }
             }.buttonStyle(FitTrackPrimary()).disabled(store.isSaving || store.isSaved)
+                .accessibilityIdentifier("saveFinishedWorkout")
             if let message = store.saveMessage { Text(message).font(.footnote).accessibilityAddTraits(.updatesFrequently) }
             Button("BACK TO HOME", action: onHome).buttonStyle(FitTrackOutline())
+                .accessibilityIdentifier("workoutBackHome")
         }.fitTrackCard().frame(maxWidth: 600).frame(maxWidth: .infinity)
     }
 }

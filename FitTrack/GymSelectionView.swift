@@ -26,12 +26,14 @@ struct GymSelectionView: View {
                                 Text(nearby.gym.address).font(.caption).foregroundStyle(FitTrackStyle.muted)
                                 if let distance = nearby.distanceLabel {
                                     Text(distance).font(.subheadline.bold()).foregroundStyle(FitTrackStyle.accent)
+                                        .accessibilityIdentifier("gymDistance-\(nearby.id)")
                                 }
                             }
                             Spacer()
                             if store.gymID == nearby.id { Image(systemName: "checkmark") }
                         }.fitTrackCard()
                     }.accessibilityValue(store.gymID == nearby.id ? "Selected" : "Not selected")
+                        .accessibilityIdentifier("gym-\(nearby.id)")
                 }
                 Text("Distances are approximate straight-line distances to campus buildings, not walking or driving directions.")
                     .font(.caption).foregroundStyle(FitTrackStyle.muted)

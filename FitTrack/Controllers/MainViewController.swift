@@ -165,6 +165,8 @@ private struct WorkoutTabBar: View {
                         Text(tabs[index].0).font(.system(size: 11, weight: index == selected ? .bold : .regular))
                     }.frame(maxWidth: .infinity, minHeight: 56)
                 }.foregroundStyle(index == selected ? FitTrackStyle.accent : FitTrackStyle.tabMuted)
+                    .accessibilityLabel(tabs[index].0)
+                    .accessibilityIdentifier("mainTab\(index)")
                     .accessibilityHint("Open \(tabs[index].0)")
                     .accessibilityAddTraits(index == selected ? .isSelected : [])
             }
