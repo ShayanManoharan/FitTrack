@@ -12,11 +12,14 @@ final class IntegratedJourneyTests: XCTestCase {
         }
         continueAfterFailure = false
         let app = XCUIApplication()
+        // Finish the previous launch configuration before rotating and relaunching.
+        app.terminate()
+        XCUIDevice.shared.orientation = .portrait
         app.launch()
         if app.buttons["mainTab3"].waitForExistence(timeout: 5) {
             app.buttons["mainTab3"].tap()
-            app.buttons["profile.signout"].tap()
-            app.buttons["confirmSignOut"].tap()
+            tap(app.buttons["profile.signout"], in: app)
+            tap(app.buttons["confirmSignOut"], in: app)
         }
         try login(app, email: email, password: password)
 
@@ -34,17 +37,20 @@ final class IntegratedJourneyTests: XCTestCase {
         let name = "Integration " + String(UUID().uuidString.prefix(6))
         let revised = name + " Revised"
         let renamed = name + " Cloud"
-        app.buttons["createWorkoutPlan"].tap()
+        tap(app.buttons["createWorkoutPlan"], in: app)
         replace(app.textFields["planName"], with: name)
+        app.textFields["planName"].typeText("\n")
         app.buttons["Bench Press"].tap()
         app.buttons["Seated Cable Row"].tap()
         tap(app.buttons["saveWorkoutPlan"], in: app)
-        app.buttons["View all →"].tap()
+        tap(app.buttons["View all →"], in: app)
         planButton(name, in: app).tap()
         app.buttons["EDIT PLAN"].tap()
         replace(app.textFields["planName"], with: revised)
+        app.textFields["planName"].typeText("\n")
         tap(app.buttons["saveWorkoutPlan"], in: app)
         XCTAssertTrue(app.staticTexts[revised].firstMatch.waitForExistence(timeout: 5))
+        app.buttons["BackButton"].tap()
         app.buttons["Close"].tap()
 
         app.buttons["mainTab2"].tap()
@@ -105,7 +111,7 @@ final class IntegratedJourneyTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["mainTab0"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["North Recreation Center"].firstMatch.exists)
-        app.buttons["View all →"].tap()
+        tap(app.buttons["View all →"], in: app)
         planButton(revised, in: app).tap()
         app.buttons["EDIT PLAN"].tap()
         tap(app.buttons["Delete workout plan"], in: app)
@@ -113,15 +119,15 @@ final class IntegratedJourneyTests: XCTestCase {
         XCTAssertTrue(planButton(revised, in: app).waitForNonExistence(timeout: 10))
         app.buttons["Close"].tap()
         app.buttons["mainTab3"].tap()
-        app.buttons["profile.signout"].tap()
-        app.buttons["confirmSignOut"].tap()
+        tap(app.buttons["profile.signout"], in: app)
+        tap(app.buttons["confirmSignOut"], in: app)
         try login(app, email: email, password: password)
         XCTAssertTrue(app.staticTexts["North Recreation Center"].firstMatch.exists)
         app.buttons["mainTab2"].tap()
         XCTAssertFalse(app.staticTexts[renamed].exists)
         app.buttons["mainTab3"].tap()
-        app.buttons["profile.signout"].tap()
-        app.buttons["confirmSignOut"].tap()
+        tap(app.buttons["profile.signout"], in: app)
+        tap(app.buttons["confirmSignOut"], in: app)
         XCTAssertTrue(app.textFields["loginEmail"].waitForExistence(timeout: 10))
     }
 
@@ -148,24 +154,42 @@ final class IntegratedJourneyTests: XCTestCase {
     private func replace(_ field: XCUIElement, with text: String) {
         XCTAssertTrue(field.waitForExistence(timeout: 10))
         field.tap()
-        field.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)).tap()
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         let keyboard = XCUIApplication().keyboards.firstMatch
         if !keyboard.waitForExistence(timeout: 3) {
-            field.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)).tap()
+            field.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         }
         let current = field.value as? String ?? ""
         // Placeholder text is not editable content.
         let content = current == field.placeholderValue ? "" : current
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: content.count) + text)
+        XCTAssertEqual(field.value as? String, text, "The text field did not retain the exact entered value")
     }
 
     @MainActor
     private func tap(_ element: XCUIElement, in app: XCUIApplication) {
         XCTAssertTrue(element.waitForExistence(timeout: 10))
         for _ in 0..<4 {
-            if element.isHittable { break }
-            app.scrollViews.firstMatch.swipeUp()
+            let identifier = element.identifier.isEmpty ? element.label : element.identifier
+            let scroll = app.scrollViews.containing(.any, identifier: identifier).firstMatch
+            let visible = scroll.exists ? scroll.frame.intersection(app.frame) : app.frame
+            let keyboard = app.keyboards.firstMatch
+            let top = visible.minY + 20
+            let bottom = min(visible.maxY, keyboard.exists ? keyboard.frame.minY : visible.maxY) - 20
+            if element.isHittable && element.frame.minY >= top && element.frame.maxY <= bottom { break }
+            // Keep drag gestures inside the content, never across the software keyboard.
+            // A drag starting on the keyboard enters QuickPath text instead of scrolling.
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let upper = origin.withOffset(CGVector(dx: visible.minX + 8 - app.frame.minX, dy: top - app.frame.minY))
+            let lower = origin.withOffset(CGVector(dx: visible.minX + 8 - app.frame.minX, dy: bottom - app.frame.minY))
+            if element.frame.midY < (top + bottom) / 2 {
+                upper.press(forDuration: 0.01, thenDragTo: lower)
+            } else {
+                lower.press(forDuration: 0.01, thenDragTo: upper)
+            }
         }
+        XCTAssertTrue(element.isHittable, "The requested control could not be scrolled into view: \(app.debugDescription)")
+        XCTAssertTrue(element.isEnabled)
         element.tap()
     }
 }
