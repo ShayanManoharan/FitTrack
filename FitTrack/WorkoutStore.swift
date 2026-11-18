@@ -23,24 +23,11 @@ final class WorkoutStore: ObservableObject {
     var todayPlan: WorkoutPlan { scheduledWorkout(on: Date())?.plan ?? plans.first ?? WorkoutCatalog.defaultPlan }
     var hasActiveSession: Bool { session != nil && session?.finishedAt == nil }
     var hasPendingSession: Bool { session != nil && !isSaved }
-    var streak: Int {
-        let calendar = Calendar.current
-        let days = Set(history.filter { $0.completedCount == $0.exercises.count }
-            .map { calendar.startOfDay(for: $0.finishedAt ?? $0.startedAt) })
-        var date = calendar.startOfDay(for: Date())
-        if !days.contains(date) { date = calendar.date(byAdding: .day, value: -1, to: date)! }
-        var count = 0
-        while days.contains(date) {
-            count += 1
-            date = calendar.date(byAdding: .day, value: -1, to: date)!
-        }
-        return count
-    }
 
     init(defaults: UserDefaults = .standard,
          authRepository: AuthRepository = AuthRepository(),
-         saveRemote: (@MainActor (Workout, @escaping (Result<Void, Error>) -> Void) -> Void)? = nil,
-         onWorkoutSaved: (() -> Void)? = nil) {
+         onWorkoutSaved: (() -> Void)? = nil,
+         saveRemote: (@MainActor (Workout, @escaping (Result<Void, Error>) -> Void) -> Void)? = nil) {
         self.defaults = defaults
         self.authRepository = authRepository
         self.requiresAuthentication = saveRemote == nil

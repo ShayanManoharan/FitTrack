@@ -8,6 +8,7 @@ final class SavedWorkoutsStore: ObservableObject {
     @Published private(set) var isBusy = false
     @Published private(set) var errorMessage: String?
     private let repository: any SavedWorkoutRepository
+    private var refreshPending = false
 
     init(repository: any SavedWorkoutRepository = WorkoutRepository()) {
         self.repository = repository
@@ -20,6 +21,7 @@ final class SavedWorkoutsStore: ObservableObject {
         repository.fetchWorkouts { [weak self] result in
             Task { @MainActor in
                 guard let self else { return }
+                defer { self.runPendingRefresh() }
                 self.isBusy = false
                 switch result {
                 case .success(let workouts): self.workouts = workouts
@@ -30,6 +32,13 @@ final class SavedWorkoutsStore: ObservableObject {
     }
 
     func refresh() {
+        if isBusy { refreshPending = true }
+        else { load() }
+    }
+
+    private func runPendingRefresh() {
+        guard refreshPending else { return }
+        refreshPending = false
         load()
     }
 
@@ -47,6 +56,7 @@ final class SavedWorkoutsStore: ObservableObject {
         repository.updateWorkout(updated) { [weak self] result in
             Task { @MainActor in
                 guard let self else { return }
+                defer { self.runPendingRefresh() }
                 self.isBusy = false
                 switch result {
                 case .success:
@@ -67,6 +77,7 @@ final class SavedWorkoutsStore: ObservableObject {
         repository.deleteWorkout(id: workout.id) { [weak self] result in
             Task { @MainActor in
                 guard let self else { return }
+                defer { self.runPendingRefresh() }
                 self.isBusy = false
                 switch result {
                 case .success: self.workouts.removeAll { $0.id == workout.id }

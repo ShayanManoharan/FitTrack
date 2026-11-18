@@ -25,6 +25,7 @@ struct HomeView: View {
                     } else { gym; todayWorkout; planActions }
                     Button("Saved workouts") { sheet = .savedWorkouts }
                         .buttonStyle(FitTrackOutline())
+                        .accessibilityIdentifier("openSavedWorkouts")
                     if let message = store.storageMessage {
                         Text(message).font(.footnote).foregroundStyle(.red)
                     }
@@ -33,6 +34,7 @@ struct HomeView: View {
             }.fitTrackScreen()
         }
         .onAppear {
+            savedWorkouts.load()
             print("[Lifecycle] HomeView appeared")
         }
         .onDisappear {
@@ -61,7 +63,7 @@ struct HomeView: View {
             HStack {
                 Text("Hi, \(displayName)").font(.system(size: 26, weight: .bold)).tracking(-0.7)
                 Spacer()
-                Text("🔥 \(store.streak)-day streak").font(.system(size: 14, weight: .heavy))
+                Text("🔥 \(WorkoutCalendarRecords.snapshot(workouts: savedWorkouts.workouts, schedules: store.scheduledWorkouts, gyms: WorkoutStore.gyms).streak(through: Date()))-day streak").font(.system(size: 14, weight: .heavy))
                     .foregroundStyle(Color(red: 0.53, green: 0.32, blue: 0.09))
                     .padding(.horizontal, 11).padding(.vertical, 8)
                     .background(Color(red: 1, green: 0.94, blue: 0.86)).clipShape(Capsule())
@@ -82,6 +84,7 @@ struct HomeView: View {
                 }
                 Spacer()
                 Button("Find gyms →") { sheet = .gyms }
+                    .accessibilityIdentifier("findGyms")
                     .font(.system(size: 12, weight: .bold)).padding(10)
                     .background(FitTrackStyle.pale).clipShape(RoundedRectangle(cornerRadius: 10))
             }.fitTrackCard()
@@ -109,15 +112,21 @@ struct HomeView: View {
                 }
                 HStack(spacing: 8) {
                     detail("Time", value: "—")
-                    detail("Location", value: isRestDay ? "—" : store.gymName)
+                    detail("Location", value: isRestDay ? "—" : workoutGymName)
                 }
                 detail("Exercises", value: isRestDay ? "Rest and recover today" : "\(done) of \(total) completed · \(total) planned")
                 Button(isRestDay ? "START A WORKOUT ANYWAY →" : store.hasActiveSession ? "RESUME WORKOUT →" : store.hasPendingSession ? "SAVE FINISHED WORKOUT →" : "START WORKOUT →") {
                     store.startWorkout()
                     onStartWorkout()
                 }.buttonStyle(FitTrackPrimary()).disabled(store.isSaving)
+                    .accessibilityIdentifier("startWorkout")
             }.fitTrackCard()
         }
+    }
+
+    private var workoutGymName: String {
+        let id = store.hasPendingSession ? store.session?.gymID : store.scheduledWorkout(on: Date())?.gymID
+        return WorkoutStore.gyms.first { $0.id == id }?.name ?? store.gymName
     }
 
     private func detail(_ label: String, value: String) -> some View {
@@ -136,6 +145,7 @@ struct HomeView: View {
                 Button("View all →") { sheet = .plans }.font(.system(size: 12, weight: .bold))
             }
             Button("＋ Create workout plan") { sheet = .create }.buttonStyle(FitTrackOutline())
+                .accessibilityIdentifier("createWorkoutPlan")
             Text(store.plans.last.map { "\($0.name) · \($0.exercises.count) exercises · \(store.plans.count) plans saved" }
                  ?? "No plans saved yet.")
                 .font(.system(size: 12)).foregroundStyle(FitTrackStyle.muted)

@@ -132,6 +132,16 @@ struct WorkoutCalendarSnapshot {
 }
 
 enum WorkoutCalendarRecords {
+    /// Both Home and Calendar use acknowledged cloud workouts and local calendar assignments.
+    /// Draft sessions and old local history never resurrect deleted or unsaved cloud records.
+    static func snapshot(workouts: [Workout], schedules: [ScheduledWorkout], gyms: [Gym],
+                         calendar: Calendar = Calendar(identifier: .gregorian)) -> WorkoutCalendarSnapshot {
+        let names = Dictionary(uniqueKeysWithValues: gyms.map { ($0.id, $0.name) })
+        let records = saved(workouts: workouts, calendar: calendar)
+            + scheduled(schedules, excluding: [], gymNames: names, calendar: calendar)
+        return WorkoutCalendarSnapshot(records: records, calendar: calendar)
+    }
+
     static func scheduled(_ schedules: [ScheduledWorkout], excluding linkedIDs: Set<UUID>,
                           gymNames: [String: String], calendar: Calendar) -> [CalendarWorkoutRecord] {
         schedules.compactMap { scheduled in
@@ -173,7 +183,12 @@ enum WorkoutCalendarRecords {
     static func saved(workouts: [Workout], calendar: Calendar) -> [CalendarWorkoutRecord] {
         workouts.map { workout in
             let completed = workout.exercises.filter { exercise in
-                !(exercise.isSkipped ?? false) && exercise.sets > 0
+                guard !(exercise.isSkipped ?? false) else { return false }
+                if let targets = exercise.setResults {
+                    return !targets.isEmpty && targets.allSatisfy(\.isComplete)
+                }
+                // Older documents did not contain per-set results.
+                return exercise.sets > 0
             }.count
             let skipped = workout.exercises.allSatisfy { $0.isSkipped ?? false }
             let hasCompletedSets = workout.exercises.contains { $0.sets > 0 }
