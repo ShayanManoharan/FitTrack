@@ -18,9 +18,7 @@ final class WorkoutStore: ObservableObject {
     private let saveRemote: @MainActor (Workout, @escaping (Result<Void, Error>) -> Void) -> Void
     private let onWorkoutSaved: (() -> Void)?
 
-    static let gyms = [(id: "rpac", name: "RPAC"),
-                       (id: "north-recreation", name: "North Recreation Center"),
-                       (id: "adventure-recreation", name: "Adventure Recreation Center")]
+    static let gyms = GymCatalog.gyms
     var gymName: String { Self.gyms.first { $0.id == gymID }?.name ?? "RPAC" }
     var todayPlan: WorkoutPlan { scheduledWorkout(on: Date())?.plan ?? plans.first ?? WorkoutCatalog.defaultPlan }
     var hasActiveSession: Bool { session != nil && session?.finishedAt == nil }

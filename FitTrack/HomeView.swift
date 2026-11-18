@@ -42,7 +42,7 @@ struct HomeView: View {
             NavigationStack {
                 Group {
                     switch route {
-                    case .gyms: gymChoices
+                    case .gyms: GymSelectionView(store: store)
                     case .plans: SavedPlansView(store: store, onStart: onStartWorkout)
                     case .create: PlanEditorView(store: store, plan: nil)
                     case .savedWorkouts: SavedWorkoutsView(store: savedWorkouts)
@@ -142,24 +142,4 @@ struct HomeView: View {
         }
     }
 
-    private var gymChoices: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Choose a gym to use for your workouts. These are sample locations; nearby search is not connected.")
-                    .font(.subheadline).foregroundStyle(FitTrackStyle.muted)
-                ForEach(WorkoutStore.gyms, id: \.id) { gym in
-                    Button { store.selectGym(gym.id); sheet = nil } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(gym.name).font(.headline)
-                                Text("Columbus, OH").font(.caption).foregroundStyle(FitTrackStyle.muted)
-                            }
-                            Spacer()
-                            if store.gymID == gym.id { Image(systemName: "checkmark") }
-                        }.fitTrackCard()
-                    }
-                }
-            }.padding(22)
-        }.navigationTitle("Find gyms").navigationBarTitleDisplayMode(.inline).fitTrackScreen()
-    }
 }
