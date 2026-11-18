@@ -70,7 +70,7 @@ final class SavedWorkoutsStore: ObservableObject {
         }
     }
 
-    func delete(_ workout: Workout) {
+    func delete(_ workout: Workout, onSuccess: @escaping () -> Void = {}) {
         guard !isBusy else { return }
         isBusy = true
         errorMessage = nil
@@ -80,7 +80,9 @@ final class SavedWorkoutsStore: ObservableObject {
                 defer { self.runPendingRefresh() }
                 self.isBusy = false
                 switch result {
-                case .success: self.workouts.removeAll { $0.id == workout.id }
+                case .success:
+                    self.workouts.removeAll { $0.id == workout.id }
+                    onSuccess()
                 case .failure(let error): self.errorMessage = error.localizedDescription
                 }
             }

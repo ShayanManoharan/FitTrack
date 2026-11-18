@@ -2,11 +2,13 @@ import SwiftUI
 
 struct SavedWorkoutsView: View {
     @ObservedObject var store: SavedWorkoutsStore
+    let onDelete: (String) -> Void
     @State private var editing: Workout?
     @State private var deleting: Workout?
 
-    init(store: SavedWorkoutsStore) {
+    init(store: SavedWorkoutsStore, onDelete: @escaping (String) -> Void = { _ in }) {
         self.store = store
+        self.onDelete = onDelete
     }
 
     var body: some View {
@@ -51,7 +53,10 @@ struct SavedWorkoutsView: View {
         .alert("Delete saved workout?", isPresented: Binding(
             get: { deleting != nil }, set: { if !$0 { deleting = nil } }
         ), presenting: deleting) { workout in
-            Button("Delete", role: .destructive) { store.delete(workout); deleting = nil }
+            Button("Delete", role: .destructive) {
+                store.delete(workout) { onDelete(workout.id) }
+                deleting = nil
+            }
             Button("Cancel", role: .cancel) { deleting = nil }
         } message: { _ in
             Text("This removes the workout from your account. Your workout plans and on-device progress are kept.")

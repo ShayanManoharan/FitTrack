@@ -71,6 +71,9 @@ struct HistoryIntegrationTests {
         // A removed cloud document must not reappear through the retained legacy cache.
         #expect(WorkoutCalendarRecords.snapshot(workouts: [], schedules: [], gyms: WorkoutStore.gyms)
             .records(on: Date()).isEmpty)
+        let savedID = try #require(store.session?.id.uuidString)
+        store.removeSavedWorkout(id: savedID)
+        #expect(store.session == nil && !store.isSaved && store.history.isEmpty)
     }
 
     @Test func partialRemoteSetsDoNotCountAsCompletedExercise() {

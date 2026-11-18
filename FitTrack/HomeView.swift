@@ -47,7 +47,7 @@ struct HomeView: View {
                     case .gyms: GymSelectionView(store: store)
                     case .plans: SavedPlansView(store: store, onStart: onStartWorkout)
                     case .create: PlanEditorView(store: store, plan: nil)
-                    case .savedWorkouts: SavedWorkoutsView(store: savedWorkouts)
+                    case .savedWorkouts: SavedWorkoutsView(store: savedWorkouts, onDelete: store.removeSavedWorkout)
                     }
                 }
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { sheet = nil } } }

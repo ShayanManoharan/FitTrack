@@ -91,6 +91,16 @@ final class WorkoutStore: ObservableObject {
     }
     func deletePlan(_ id: UUID) { plans.removeAll { $0.id == id }; persist() }
 
+    func removeSavedWorkout(id: String) {
+        history.removeAll { $0.id.uuidString == id }
+        if isSaved && session?.id.uuidString == id {
+            session = nil
+            isSaved = false
+            saveMessage = nil
+        }
+        persist()
+    }
+
     func scheduledWorkout(on date: Date, calendar: Calendar = Calendar(identifier: .gregorian)) -> ScheduledWorkout? {
         scheduledWorkouts.first { $0.isOn(date, calendar: calendar) }
     }
